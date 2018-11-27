@@ -201,12 +201,17 @@ class Router:
     #  @param i Incoming interface number for packet p
     def forward_packet(self, p, i):
         try:
-            # TODO: Here you will need to implement a lookup into the
-            # forwarding table to find the appropriate outgoing interface
-            # for now we assume the outgoing interface is 1
-            self.intf_L[1].put(p.to_byte_S(), 'out', True)
-            print('%s: forwarding packet "%s" from interface %d to %d' % \
-                  (self, p, i, 1))
+            dst = p.to_byte_S()
+            dst = dst[0:5].strip('0')
+            #print(dst)
+            if dst == 'H2':
+                self.intf_L[1].put(p.to_byte_S(), 'out', True)
+                print('%s: forwarding packet "%s" from interface %d to %d' % \
+                      (self, p, i, 1))
+            elif dst == 'H1':
+                self.intf_L[0].put(p.to_byte_S(), 'out', True)
+                print('%s: forwarding packet "%s" from interface %d to %d' % \
+                 (self, p, i, 0))
         except queue.Full:
             print('%s: packet "%s" lost on interface %d' % (self, p, i))
             pass
