@@ -111,6 +111,7 @@ class Host:
         pkt_S = self.intf_L[0].get('in')
         if pkt_S is not None:
             print('%s: received packet "%s"' % (self, pkt_S))
+            
 
     ## thread target for the host to keep receiving data
     def run(self):
@@ -133,14 +134,20 @@ class Router:
     def __init__(self, name, cost_D, max_queue_size):
         self.stop = False  # for thread termination
         self.name = name
-        # create a list of interfaces
+        self.flag = True
+        self.interfaces = {}
+        #create a list of interfaces
         self.intf_L = [Interface(max_queue_size) for _ in range(len(cost_D))]
-        # save neighbors and interfeces on which we connect to them
-        self.cost_D = cost_D  # {neighbor: {interface: cost}}
-        # TODO: set up the routing table for connected hosts
-        self.rt_tbl_D = {}
-        for key in cost_D:
-            self.rt_tbl_D[key] = cost_D.get(key)
+        #save neighbors and interfeces on which we connect to them
+        self.cost_D = cost_D    # {neighbor: {interface: cost}}
+        #TODO: set up the routing table for connected hosts
+        self.rt_tbl_D = {name:{name: 0}}
+        for router in list(cost_D):
+            for interface in list(self.cost_D[router]):
+                cost = cost_D[router][interface]
+                self.interfaces.update({interface:cost})
+                self.rt_tbl_D.update({router : {self.name:cost}})
+                
         # {destination: {router: cost}}
         print('%s: Initialized routing table' % self)
         self.print_routes()
@@ -211,18 +218,26 @@ class Router:
             if dst == 'H2':
                 if self.name == 'RD':
                     self.intf_L[2].put(p.to_byte_S(), 'out', True)
-                self.intf_L[1].put(p.to_byte_S(), 'out', True)
-                print('%s: forwarding packet "%s" from interface %d to %d' % \
-                      (self, p, i, 1))
+                    print('%s: forwarding packet "%s" from interface %d to %d' % \
+                          (self, p, i, 2))
+                else:
+                    self.intf_L[1].put(p.to_byte_S(), 'out', True)
+                    print('%s: forwarding packet "%s" from interface %d to %d' % \
+                          (self, p, i, 1))
             elif dst == 'H1':
                 if(self.name == 'RD'):
                     self.intf_L[1].put(p.to_byte_S(), 'out', True)
+                    print('%s: forwarding packet "%s" from interface %d to %d' % \
+                          (self, p, i, 1))
                 if(self.name == 'RC'):
                     self.intf_L[0].put(p.to_byte_S(), 'out', True)
+                    print('%s: forwarding packet "%s" from interface %d to %d' % \
+                          (self, p, i, 0))
                 if (self.name == 'RA'):
                     self.intf_L[0].put(p.to_byte_S(), 'out', True)
-                print('%s: forwarding packet "%s" from interface %d to %d' % \
-                 (self, p, i, 0))
+                    print('%s: forwarding packet "%s" from interface %d to %d' % \
+                          (self, p, i, 0))
+                    
         except queue.Full:
             print('%s: packet "%s" lost on interface %d' % (self, p, i))
             pass
@@ -232,7 +247,15 @@ class Router:
     def send_routes(self, i):
         # TODO: Send out a routing table update
         # create a routing table update packet
-        p = NetworkPacket(0, 'control', 'DUMMY_ROUTING_TABLE')
+        msg = ""
+        for neighbor in self.rt_tbl_D:
+            if(neighbor == self.name):
+                continue
+            msg += neighbor
+            for router_name in self.rt_tbl_D[neighbor]:
+                msg += str(router_name) + str(self.rt_tbl_D[neighbor][router_name])
+            msg += "|"
+        p = NetworkPacket(0, 'control', msg)
         try:
             print('%s: sending routing update "%s" from interface %d' % (self, p, i))
             self.intf_L[i].put(p.to_byte_S(), 'out', True)
@@ -245,7 +268,37 @@ class Router:
     def update_routes(self, p, i):
         # TODO: add logic to update the routing tables and
         # possibly send out routing updates
+        temp_dict = {}
+        temp_dict2 = {}
+        msg = p.to_byte_S()
+        i = 0
+        while(i < len(msg)):
+            if(msg[i] == "|"):
+                cur_router = msg[i-3:i-1]
+                cost = int(msg[i-1])
+                temp_dict2[cur_router] = cost
+                temp_dict[msg[i-5:i-3]] = temp_dict2
+            temp_dict2 = {}
+            i += 1
+
+        
+        for n2 in temp_dict:
+            if n2 in self.rt_tbl_D:
+                break
+            else:
+                temp = 1
+                for cur in temp_dict[n2]:
+                    temp += temp_dict[n2][cur]
+
+                temp_dct = {self.name : temp}
+                self.rt_tbl_D[n2] = temp_dct
+                
+        
         print('%s: Received routing update %s from interface %d' % (self, p, i))
+        if self.flag:
+            for interface in self.interfaces:
+                self.send_routes(interface)
+            self.flag = False
 
     ## thread target for the host to keep forwarding data
     def run(self):
