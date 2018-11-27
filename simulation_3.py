@@ -6,7 +6,7 @@ import sys
 
 ##configuration parameters
 router_queue_size = 0 #0 means unlimited
-simulation_time = 1   #give the network sufficient time to execute transfers
+simulation_time = 3   #give the network sufficient time to execute transfers
 
 if __name__ == '__main__':
     object_L = [] #keeps track of objects, so we can kill their threads at the end
@@ -46,12 +46,12 @@ if __name__ == '__main__':
     link_layer.add_link(link.Link(host_1, 0, router_a, 0))
     link_layer.add_link(link.Link(router_a, 1, router_b, 0))
     link_layer.add_link(link.Link(router_a, 2, router_c, 0))
-    #link_layer.add_link(link.Link(router_b, 0, router_a, 0))
+    link_layer.add_link(link.Link(router_b, 0, router_a, 0))
     link_layer.add_link(link.Link(router_b, 1, router_d, 0))
-    #link_layer.add_link(link.Link(router_c, 0, router_a, 2))
+    link_layer.add_link(link.Link(router_c, 0, router_a, 2))
     link_layer.add_link(link.Link(router_c, 1, router_d, 1))
-    #link_layer.add_link(link.Link(router_d, 0, router_b, 1))
-    l#ink_layer.add_link(link.Link(router_d, 1, router_c, 1))
+    link_layer.add_link(link.Link(router_d, 0, router_b, 1))
+    link_layer.add_link(link.Link(router_d, 1, router_c, 1))
     link_layer.add_link(link.Link(router_d, 2, host_2, 0))
     
     
@@ -73,6 +73,7 @@ if __name__ == '__main__':
 
     #send packet from host 1 to host 2
     host_1.udt_send('H2', 'MESSAGE_FROM_H1')
+    host_2.udt_send('H1', "MSG_FROM_H2")
     sleep(simulation_time)
     
     
