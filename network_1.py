@@ -168,10 +168,12 @@ class Router:
             print("╪══════", end="", flush=True)
         print("╡")
 
+        
+
         print("│ " + self.name + "   |", end="", flush=True)
         for neighbor in self.rt_tbl_D:
-            for key in self.rt_tbl_D[neighbor]:
-                print(" " + str(self.rt_tbl_D[neighbor][key]) + "    |", end="", flush=True)
+            for interface in self.rt_tbl_D[neighbor]:
+                print(" " + str(self.rt_tbl_D[neighbor][interface]) + "    |", end="", flush=True)
         print()
 
         print("╘══════", end="", flush=True)
@@ -224,7 +226,13 @@ class Router:
     def send_routes(self, i):
         # TODO: Send out a routing table update
         #create a routing table update packet
-        p = NetworkPacket(0, 'control', 'DUMMY_ROUTING_TABLE')
+        msg = ""
+        for neighbor in self.rt_tbl_D:
+            msg += neighbor
+            for interface in self.rt_tbl_D[neighbor]:
+                msg += str(interface) + str(self.rt_tbl_D[neighbor][interface])
+            msg += "|"
+        p = NetworkPacket(0, 'control', msg)
         try:
             print('%s: sending routing update "%s" from interface %d' % (self, p, i))
             self.intf_L[i].put(p.to_byte_S(), 'out', True)
@@ -238,6 +246,27 @@ class Router:
     def update_routes(self, p, i):
         #TODO: add logic to update the routing tables and
         # possibly send out routing updates
+        temp_dict = {}
+        temp_dict2 = {}
+        msg = p.to_byte_S()
+        i = 0
+        while(i < len(msg)):
+            if(msg[i] == "|"):
+                interface = int(msg[i-2])
+                cost = int(msg[i-1])
+                temp_dict2[interface] = cost
+                temp_dict[msg[i-4:i-2]] = temp_dict2
+            temp_dict2 = {}
+            i += 1
+
+        
+        for (n1),(n2) in zip(self.rt_tbl_D, temp_dict):
+            if n2 in self.rt_tbl_D:
+                for (int1), (int2) in zip(self.rt_tbl_D[n1], temp_dict[n2]):
+                    break
+            #else:
+                
+        
         print('%s: Received routing update %s from interface %d' % (self, p, i))
 
                 
