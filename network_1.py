@@ -136,14 +136,20 @@ class Router:
     def __init__(self, name, cost_D, max_queue_size):
         self.stop = False #for thread termination
         self.name = name
+        self.flag = True
+        self.interfaces = {}
         #create a list of interfaces
         self.intf_L = [Interface(max_queue_size) for _ in range(len(cost_D))]
         #save neighbors and interfeces on which we connect to them
         self.cost_D = cost_D    # {neighbor: {interface: cost}}
         #TODO: set up the routing table for connected hosts
-        self.rt_tbl_D = {}
-        for key in cost_D:
-            self.rt_tbl_D[key] = cost_D.get(key)
+        self.rt_tbl_D = {name:{name: 0}}
+        for router in list(cost_D):
+            for interface in list(self.cost_D[router]):
+                cost = cost_D[router][interface]
+                self.interfaces.update({interface:cost})
+                self.rt_tbl_D.update({router : {self.name:cost}})
+                
         # {destination: {router: cost}}
         print('%s: Initialized routing table' % self)
         self.print_routes()
@@ -228,9 +234,11 @@ class Router:
         #create a routing table update packet
         msg = ""
         for neighbor in self.rt_tbl_D:
+            if(neighbor == self.name):
+                continue
             msg += neighbor
-            for interface in self.rt_tbl_D[neighbor]:
-                msg += str(interface) + str(self.rt_tbl_D[neighbor][interface])
+            for router_name in self.rt_tbl_D[neighbor]:
+                msg += str(router_name) + str(self.rt_tbl_D[neighbor][router_name])
             msg += "|"
         p = NetworkPacket(0, 'control', msg)
         try:
@@ -252,22 +260,39 @@ class Router:
         i = 0
         while(i < len(msg)):
             if(msg[i] == "|"):
-                interface = int(msg[i-2])
+                cur_router = msg[i-3:i-1]
                 cost = int(msg[i-1])
-                temp_dict2[interface] = cost
-                temp_dict[msg[i-4:i-2]] = temp_dict2
+                temp_dict2[cur_router] = cost
+                temp_dict[msg[i-5:i-3]] = temp_dict2
             temp_dict2 = {}
             i += 1
 
         
-        for (n1),(n2) in zip(self.rt_tbl_D, temp_dict):
+        for n2 in temp_dict:
             if n2 in self.rt_tbl_D:
-                for (int1), (int2) in zip(self.rt_tbl_D[n1], temp_dict[n2]):
-                    break
-            #else:
+                #for (int1), (int2) in zip(self.rt_tbl_D[n1], temp_dict[n2]):
+                break
+            else:
+                temp = 1
+                #cur = temp_dict[n2]
+                #for router in self.rt_tbl_D:
+                #    print(router, cur)
+                #    if router == cur:
+                #        temp = self.rt_tbl_D[router][self.name]
+
+                #print("TEMP: " + str(temp))
+                for cur in temp_dict[n2]:
+                    temp += temp_dict[n2][cur]
+
+                temp_dct = {self.name : temp}
+                self.rt_tbl_D[n2] = temp_dct
                 
         
         print('%s: Received routing update %s from interface %d' % (self, p, i))
+        if self.flag:
+            for interface in self.interfaces:
+                self.send_routes(interface)
+            self.flag = False
 
                 
     ## thread target for the host to keep forwarding data

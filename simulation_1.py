@@ -6,7 +6,7 @@ import sys
 
 ##configuration parameters
 router_queue_size = 0 #0 means unlimited
-simulation_time = 1   #give the network sufficient time to execute transfers
+simulation_time = 3   #give the network sufficient time to execute transfers
 
 if __name__ == '__main__':
     object_L = [] #keeps track of objects, so we can kill their threads at the end
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     sleep(simulation_time)  #let the tables converge
     print("Converged routing tables")
     for obj in object_L:
-        if str(type(obj)) == "<class 'network.Router'>":
+        if str(type(obj)) == "<class 'network_1.Router'>":
             obj.print_routes()
 
     #send packet from host 1 to host 2
